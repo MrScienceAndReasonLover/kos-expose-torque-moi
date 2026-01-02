@@ -1,149 +1,82 @@
-# kOS Expose Torque & Moment of Inertia
+# Expose Torque & Moment of Inertia to kOS
 
 A **kOS addon** for Kerbal Space Program that exposes a vessel’s **moment of inertia** and **available control torque** (reaction wheels, RCS, control surfaces, engines) directly to kOS scripts.
-
-This addon is intended for **guidance, navigation, and control (GNC)** scripts that need physically meaningful vehicle properties instead of hard-coded gains or guesswork.
-
----
-
-## Features
-
-- Exposes vessel **moment of inertia** (about roll, pitch, yaw axes)
-- Exposes **available control torque**, broken down by source:
-  - Reaction wheels
-  - RCS
-  - Control surfaces
-  - Engine gimbals
-- Provides **total available torque** as a convenience
-- RCS torque is computed **geometrically per thruster**, matching kRPC behavior
-- Values update dynamically as the vessel changes
-
----
-
-## Installation
-
-1. Download the release ZIP
-2. Extract into your KSP install so you have:
-
-```
-GameData/
-└── kOS_Inertia/
-    └── Plugins/
-        └── InertiaAddon.dll
-```
-
-3. Make sure **kOS is installed**
-4. Start KSP
 
 ---
 
 ## Usage in kOS
 
-All functionality is exposed via `ADDONS:INERTIA`.
+All functionality is exposed via `ADDONS:EX`.
 
 ### Moment of Inertia
+| Command                 | Return Type | Units                   | Description                       |
+|-------------------------|-------------|-------------------------|-----------------------------------|
+|`MomentOfInertia:VECTOR` | Vector      |  $\text{tons}\cdot m^2$ | Moment of Inertia about ship axes |
+|`MomentOfInertia:ROLL`   | ScalarValue |  $\text{tons}\cdot m^2$ | Moment of Inertia about roll axis |
+|`MomentOfInertia:PITCH`  | ScalarValue |  $\text{tons}\cdot m^2$ | Moment of Inertia about pitch axis|
+|`MomentOfInertia:YAW`    | ScalarValue |  $\text{tons}\cdot m^2$ | Moment of Inertia about yaw axis  |
+
+
+The moment of inertia vector is expressed in KSP's native coordinate system where x is starboard, y is the direction the ship points, and z is down. This is different than what kOS uses, so I've also included suffixes that give you the moments in terms of roll, pitch, and yaw, which should be easier to understand. Also note that moment of inertia is a 3x3 tensor in reality, and I have not exposed the entire tensor because KSP does not do it for me. I could be persuaded to go through the math myself, but since ships are usually symmetric in some way, the off-diagonal terms should be pretty negligible. 
 
 ```kos
-SET moi TO ADDONS:INERTIA:MOI.
+SET moi TO ADDONS:EX:MOMENTOFINERTIA.
+
 PRINT moi:ROLL.
 PRINT moi:PITCH.
 PRINT moi:YAW.
 ```
-
-- Units: **t·m²** (KSP internal units)
-- Axes are aligned with the vessel reference frame: roll, pitch, yaw
-
 ---
 
 ### Available Torque
+Accessing torque is a little more complicated since there are multiple providers and each can have different values in the positive and negative directions. The available fields are
+| Command                        | Return Type | Units                   | Description                            |
+|--------------------------------|-------------|-------------------------|----------------------------------------|
+|`AvailableTorque:TOTAL`         | TorquePair  |  $kN\cdot m^2$          | Total available torque                 |
+|`AvailableTorque:REACTIONWHEEL` | TorquePair  |  $kN\cdot m^2$          | Available torque from reaction wheels  | 
+|`AvailableTorque:RCS`           | TorquePair  |  $kN\cdot m^2$          | Available torque from RCS              |
+|`AvailableTorque:ENGINE`        | TorquePair  |  $kN\cdot m^2$          | Available torque from engine gimbal    |
+|`AvailableTorque:CONTROLSURFACE`| TorquePair  |  $kN\cdot m^2$          | Available torque from control surfaces |
 
-```kos
-SET torque TO ADDONS:INERTIA:TORQUE.
-
-PRINT torque:TOTAL:POS.
-PRINT torque:TOTAL:NEG.
-
-PRINT torque:RCS:POS:ROLL.
-PRINT torque:REACTIONWHEEL:POS:PITCH.
-```
-
-Each torque provider exposes:
+Each torque pair has fields:
 
 - `:POS` — positive-direction torque components
 - `:NEG` — negative-direction torque components
 
-Each of `:POS` and `:NEG` exposes:
-
+Each of `:POS` and `:NEG` has the same fields as moment of inertia:
+- `:VECTOR`
 - `:ROLL`
 - `:PITCH`
 - `:YAW`
-- `:VECTOR`
-
----
-
-### Example
-
 ```kos
-SET t TO ADDONS:INERTIA:TORQUE.
+SET torque TO ADDONS:EX:AVAILABLETORQUE.
 
-SET rollAuthority TO t:TOTAL:POS:ROLL + t:TOTAL:NEG:ROLL.
-PRINT "Available roll torque: " + rollAuthority.
+PRINT torque:total:pos:roll.
+PRINT torque:total:pos:pitch.
+PRINT torque:total:pos:yaw.
+
+PRINT torque:total:neg:roll.
+PRINT torque:total:neg:pitch.
+PRINT torque:total:neg:yaw.
 ```
 
 ---
 
-## Notes on Physics & Interpretation
-
-- **RCS torque** is computed per thruster using geometry (`τ = r × F`) in the vessel reference frame.
-  - This avoids inconsistencies in KSP’s built-in torque estimates
-  - Matches kRPC’s interpretation of available RCS torque
-- **Total available torque** is a *control authority estimate*.
-  - Not all torque sources can be applied simultaneously in practice (surfaces need airspeed, gimbals need thrust, RCS needs propellant, etc.)
-  - Intended for controller design and guidance logic, not exact prediction
-
----
-
 ## Requirements
-
-- Kerbal Space Program
-- kOS
+- kOS v 1.5.1.0
 
 ---
-
-## Compatibility
-
-- Designed for modern KSP + kOS
-- Tested with multiple vessels simultaneously
-- Does **not** depend on kRPC
-
----
-
-## License
-
-MIT License
-
----
-
 ## Motivation
 
-This addon exists because:
+If I were using kOS to learn how to design control systems, the first thing I would do is to try recreate what the cooked control system is doing. I would go to the kOS docs and find that they calculate the PID gains for the inner loop as 
 
-- kOS does not natively expose moment of inertia
-- Torque availability is critical for control design
-- RCS torque in particular is difficult to reason about correctly
+$k_i = I\left(\frac{4}{t_s}\right)^2$
 
-If you are writing:
+$k_p = 2\sqrt{I} k_i$ 
 
-- attitude controllers
-- adaptive control laws
-- guidance algorithms
-- physically grounded autopilots
-
-…this addon is for you.
+Where $I$ is the ship's moment of inertia (about the control axis), and $t_s$ is the desired settling time. Since this PID loop calculates torque, you also need to normalize by the total torque to send a command to say, `SHIP:CONTROL:PILOTPITCH`. Unfortunately, there is no way to do this in standard kOS. You can estimate moment of inertia fairly easily by looping through parts, but estimating torque is much more difficult since things like reaction wheel torque, rcs force, control surface area, and maximum engine gimbal are not exposed to the user in any way. Since real aerospace engineers certainly have models of their vessel's moment of inertia and available torque, I see no reason to limit kOS users in this way, especially since the stock system takes advantage of this knowledge. 
 
 ---
-
-## Acknowledgements
-
-- Inspired by kRPC’s torque and reference-frame handling
-- Thanks to the kOS community for making deep scripting possible in KSP
+## License
+MIT LICENSE
+---
