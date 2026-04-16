@@ -32,11 +32,11 @@ PRINT moi:YAW.
 Accessing torque is a little more complicated since there are multiple providers and each can have different values in the positive and negative directions. The available fields are
 | Command                        | Return Type | Units                   | Description                            |
 |--------------------------------|-------------|-------------------------|----------------------------------------|
-|`AvailableTorque:TOTAL`         | TorquePair  |  $kN\cdot m^2$          | Total available torque                 |
-|`AvailableTorque:REACTIONWHEEL` | TorquePair  |  $kN\cdot m^2$          | Available torque from reaction wheels  | 
-|`AvailableTorque:RCS`           | TorquePair  |  $kN\cdot m^2$          | Available torque from RCS              |
-|`AvailableTorque:ENGINE`        | TorquePair  |  $kN\cdot m^2$          | Available torque from engine gimbal    |
-|`AvailableTorque:CONTROLSURFACE`| TorquePair  |  $kN\cdot m^2$          | Available torque from control surfaces |
+|`AvailableTorque:TOTAL`         | TorquePair  |  $kN\cdot m$          | Total available torque                 |
+|`AvailableTorque:REACTIONWHEEL` | TorquePair  |  $kN\cdot m$          | Available torque from reaction wheels  | 
+|`AvailableTorque:RCS`           | TorquePair  |  $kN\cdot m$          | Available torque from RCS              |
+|`AvailableTorque:ENGINE`        | TorquePair  |  $kN\cdot m$          | Available torque from engine gimbal    |
+|`AvailableTorque:CONTROLSURFACE`| TorquePair  |  $kN\cdot m$          | Available torque from control surfaces |
 
 Each torque pair has fields:
 
